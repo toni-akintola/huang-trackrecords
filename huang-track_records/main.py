@@ -33,6 +33,7 @@ class MyModel():
                 'm': np.random.uniform(0.05, 0.5)
             }
             self.graph.nodes[node].update(initial_data)
+        return self.graph
 
     def timestep(self):
         coin_flip = 1 if np.random.rand() < self.true_bias else 0
@@ -40,6 +41,7 @@ class MyModel():
             self._update_credences(node_data, coin_flip)
             self._solicit_testimony(node)
             self._record_track(node_data)
+        return self.graph
 
     def _update_credences(self, node_data, coin_flip):
         ideal_update = self._bayesian_update(node_data, coin_flip)
