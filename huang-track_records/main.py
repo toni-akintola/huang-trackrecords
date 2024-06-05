@@ -77,18 +77,3 @@ class MyModel():
         accuracy = 1 - \
             np.mean((node_data['credences'] - true_bias_vector) ** 2)
         node_data['track_record'].append(accuracy)
-
-
-# Initialize model
-new_model = MyModel()
-new_model.initialize_graph()
-
-# Run for number of timesteps
-timesteps = new_model.num_steps
-for _ in range(timesteps):
-    new_model.timestep()
-
-# Print results
-for node, data in new_model.graph.nodes(data=True):
-    print(
-        f"Node {node}: Credences {data['credences']}, Track Record {data['track_record']}")
