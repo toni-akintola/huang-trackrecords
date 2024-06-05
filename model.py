@@ -3,7 +3,7 @@ import numpy as np
 
 
 # Define class
-class MyModel():
+class HuangTrackRecord:
     def __init__(self):
         # Define Parameters
         self.num_nodes = 30
