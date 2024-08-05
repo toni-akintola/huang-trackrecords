@@ -19,10 +19,12 @@ def generateTimestepData(model: AgentModel):
     def _update_credences(node_data, coin_flip):
         ideal_update = _bayesian_update(node_data, coin_flip)
         noisy_update = np.random.normal(ideal_update, node_data["b"])
+
         node_data["credences"] = list(
             node_data["c"] * noisy_update
             + (1 - node_data["c"]) * np.array(node_data["credences"])
         )
+        node_data["credences"] = np.clip(node_data["credences"], 0, 1)
         node_data["credences"] = list(
             np.array(node_data["credences"]) / np.sum(node_data["credences"])
         )
@@ -55,15 +57,12 @@ def generateTimestepData(model: AgentModel):
             node_data["credences"] = list(
                 np.array(node_data["credences"]) / np.sum(node_data["credences"])
             )
+            np.clip(node_data["credences"], 0, 1)
 
     def _record_track(model: AgentModel, node_data):
-        true_bias_vector = np.array(
-            [
-                1 if model["true_bias"] == bias else 0
-                for bias in [0, 0.2, 0.4, 0.6, 0.8, 1]
-            ]
-        )
-        accuracy = 1 - np.mean((node_data["credences"] - true_bias_vector) ** 2)
+        prediction = np.dot(node_data["credences"], [0, 0.2, 0.4, 0.6, 0.8, 1.0])
+        outcome = 1 if coin_flip else 0
+        accuracy = 1 - (prediction - outcome) ** 2
         node_data["track_record"].append(accuracy)
         node_data["curr_brier"] = accuracy
 
@@ -87,3 +86,5 @@ def constructModel() -> AgentModel:
     model.set_timestep_function(generateTimestepData)
 
     return model
+
+
