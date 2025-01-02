@@ -1,6 +1,6 @@
 import networkx as nx
 import numpy as np
-from modelpy_abm.main import AgentModel
+from emergent.main import AgentModel
 
 
 def generateInitialData(model: AgentModel):
@@ -86,5 +86,3 @@ def constructModel() -> AgentModel:
     model.set_timestep_function(generateTimestepData)
 
     return model
-
-
