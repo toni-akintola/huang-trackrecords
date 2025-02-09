@@ -1,85 +1,101 @@
 import networkx as nx
 import numpy as np
 from emergent.main import AgentModel
+import random
+import uuid
+import scipy
 
 
 def generateInitialData(model: AgentModel):
+    hyp = np.round(np.arange(0, 1.001, 1 / 5), 2)
     initial_data = {
-        "credences": list(np.ones(6) / 6),
-        "track_record": [],
-        "curr_brier": 1,
-        "c": np.random.uniform(0, 1),
-        "b": np.random.uniform(0, 0.2),
-        "m": np.random.uniform(0.05, 0.5),
+        "record": [],
+        "m": round(random.uniform(0.05, 0.5), 2),  # Open-mindedness
+        "model": model,
+        "unique_id": uuid.uuid4(),
+        "hyp": hyp,
+        "cred": np.round(np.full(len(hyp), 1 / len(hyp)), 2),  # Credences
+        "noise": random.uniform(0.001, 0.2),  # equivalent to sigma in paper
+        "c": round(random.random(), 2),  # weight for evidence vs testimony
+        "neighbors": [],
+        "social": None,
+        "evidential": None,
+        "pr": 0,
+        "ev": 0,
+        "id": 0,
+        "hub": 0,
+        "authority": 0,
+        "Brier": [],
+        "BrierT": None,
+        "crps": None,
     }
     return initial_data
 
 
 def generateTimestepData(model: AgentModel):
-    def _update_credences(node_data, coin_flip):
-        ideal_update = _bayesian_update(node_data, coin_flip)
-        noisy_update = np.random.normal(ideal_update, node_data["b"])
+    nodes = [node[1] for node in model.get_graph().nodes(data=True)]
 
-        node_data["credences"] = list(
-            node_data["c"] * noisy_update
-            + (1 - node_data["c"]) * np.array(node_data["credences"])
+    def _update_social(node_data: dict[str, any]):
+        node_data["social"] = np.round(sum([]))
+
+    def _update_evidence(node_data: dict[str, any]):
+        toss = np.random.binomial(1, model["truth"])
+        # Credence at previous time step against new toss
+        node_data["Brier"].append(
+            round((toss - sum(node_data["cred"] * node_data["hyp"])) ** 2, 4)
         )
-        node_data["credences"] = np.clip(node_data["credences"], 0, 1)
-        node_data["credences"] = list(
-            np.array(node_data["credences"]) / np.sum(node_data["credences"])
+        Pr_E_H = np.absolute((1 - toss) - node_data["hyp"])
+        posterior = Pr_E_H * node_data["cred"] / np.sum(node_data["cred"] * Pr_E_H)
+        loc = posterior
+        scale = node_data["noise"]
+        # No negative credences
+        noisy = scipy.stats.truncnorm.rvs(
+            (0.0001 - loc) / scale, (9.9999 - loc) / scale, loc=loc, scale=scale
         )
+        node_data["evidential"] = noisy / sum(noisy)
 
-    def _calculate_likelihoods(coin_flip):
-        biases = np.array([0, 0.2, 0.4, 0.6, 0.8, 1.0])
-        return biases if coin_flip == 1 else (1 - biases)
+    def _r_avg(node_data: dict[str, any]):
+        if len(node_data["record"]) > 0:
+            return round(sum(node_data["record"]) / len(node_data["record"]), 4)
+        else:
+            return 1
 
-    def _bayesian_update(node_data, coin_flip):
-        likelihoods = _calculate_likelihoods(coin_flip)
-        posteriors = node_data["credences"] * likelihoods
-        return posteriors / np.sum(posteriors)
+    def _update_neighbors(node_data: dict[str, any]):
+        n = round(model["num_nodes"] * node_data["m"])
+        if n < 1:
+            # Agent trusts no one
+            node_data["neighbors"] = [node_data]
+        elif len(node_data["record"]) == 0:
+            # No track records yet
+            node_data["neighbors"] = random.sample(nodes, n)
+        else:
+            # Choose the best performing agents so far
+            temp = []
+            ls = nodes
+            random.shuffle(ls)
+            temp = sorted(ls, key=lambda x: _r_avg(node_data))[:n]
+            if len(temp) < 1:
+                temp.append(node_data)
+            node_data["neighbors"] = temp
 
-    def _solicit_testimony(model: AgentModel, node):
-        graph = model.get_graph()
-        neighbors = list(graph.neighbors(node))
-        node_data = graph.nodes[node]
-        if neighbors:
-            informants = np.random.choice(
-                neighbors, int(len(neighbors) * node_data["m"]), replace=False
-            )
-            social_update = np.mean(
-                [graph.nodes[informant]["credences"] for informant in informants],
-                axis=0,
-            )
-            node_data["credences"] = list(
-                node_data["m"] * social_update
-                + (1 - node_data["m"]) * np.array(node_data["credences"])
-            )
-            node_data["credences"] = list(
-                np.array(node_data["credences"]) / np.sum(node_data["credences"])
-            )
-            np.clip(node_data["credences"], 0, 1)
-
-    def _record_track(model: AgentModel, node_data):
-        prediction = np.dot(node_data["credences"], [0, 0.2, 0.4, 0.6, 0.8, 1.0])
-        outcome = 1 if coin_flip else 0
-        accuracy = 1 - (prediction - outcome) ** 2
-        node_data["track_record"].append(accuracy)
-        node_data["curr_brier"] = accuracy
-
-    coin_flip = 1 if np.random.rand() < model["true_bias"] else 0
-    graph = model.get_graph()
-    for node, node_data in graph.nodes(data=True):
-        _update_credences(node_data, coin_flip)
-        _solicit_testimony(model, node)
-        _record_track(model, node_data)
-    model.set_graph(graph)
+    for node in nodes:
+        _update_evidence(node)
+        _update_neighbors(node)
+        _update_social(node)
 
 
 def constructModel() -> AgentModel:
     model = AgentModel()
-
+    t = random.choice(np.round(np.arange(0, 1.001, 1 / 5), 2))
+    f = 1
     model.update_parameters(
-        {"num_nodes": 30, "graph_type": "complete", "true_bias": 0.6}
+        {
+            "num_nodes": 30,
+            "graph_type": "complete",
+            "true_bias": 0.6,
+            "truth": t,
+            "feedback_rate": f,
+        }
     )
 
     model.set_initial_data_function(generateInitialData)
