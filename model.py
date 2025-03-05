@@ -37,9 +37,9 @@ def generateTimestepData(model: AgentModel):
             4,
         )
 
-    def update_evidence(self, node_data: Dict) -> Dict:
+    def update_evidence(node_data: Dict) -> Dict:
         """Update evidential component based on new evidence"""
-        toss = np.random.binomial(1, self["truth"])
+        toss = np.random.binomial(1, model["truth"])
         node_data["brier_history"].append(
             calculate_brier_score(node_data["cred"], toss)
         )
@@ -58,10 +58,10 @@ def generateTimestepData(model: AgentModel):
         node_data["evidential"] = (noisy / sum(noisy)).tolist()
         return node_data
 
-    def update_social(self, node: int, node_data: Dict) -> Dict:
+    def update_social(node: int, node_data: Dict) -> Dict:
         """Update social component based on neighbors"""
-        graph = self.get_graph()
-        if self["scientist_type"] == "random":
+        graph = model.get_graph()
+        if model["scientist_type"] == "random":
             # Random scientist picks random neighbors
             neighbors = random.sample(
                 # Exclude self from neighbors
