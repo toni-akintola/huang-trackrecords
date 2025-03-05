@@ -29,10 +29,10 @@ def generateInitialData(model: AgentModel) -> Dict:
 def generateTimestepData(model: AgentModel):
     """Main timestep function"""
 
-    def calculate_brier_score(self, cred: List[float], toss: int) -> float:
+    def calculate_brier_score(cred: List[float], toss: int) -> float:
         """Calculate Brier score for a prediction"""
         return round(
-            (toss - sum(np.array(cred) * np.array(self.get_graph().nodes[0]["hyp"])))
+            (toss - sum(np.array(cred) * np.array(model.get_graph().nodes[0]["hyp"])))
             ** 2,
             4,
         )
