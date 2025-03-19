@@ -29,11 +29,10 @@ def generateInitialData(model: AgentModel) -> Dict:
 def generateTimestepData(model: AgentModel):
     """Main timestep function"""
 
-    def calculate_brier_score(cred: List[float], toss: int) -> float:
+    def calculate_brier_score(node_data: Dict, toss: int) -> float:
         """Calculate Brier score for a prediction"""
         return round(
-            (toss - sum(np.array(cred) * np.array(model.get_graph().nodes[0]["hyp"])))
-            ** 2,
+            (toss - sum(np.array(node_data["cred"]) * np.array(node_data["hyp"]))) ** 2,
             4,
         )
         # Take credence for each hypothesis, and weight each hypothesis to get the agent's overall belief.
@@ -41,9 +40,7 @@ def generateTimestepData(model: AgentModel):
     def update_evidence(node_data: Dict) -> Dict:
         """Update evidential component based on new evidence"""
         toss = np.random.binomial(1, model["truth"])
-        node_data["brier_history"].append(
-            calculate_brier_score(node_data["cred"], toss)
-        )
+        node_data["brier_history"].append(calculate_brier_score(node_data, toss))
 
         hyp = np.array(node_data["hyp"])
         cred = np.array(node_data["cred"])
@@ -139,3 +136,4 @@ def constructModel() -> AgentModel:
         }
     )
     return model
+
