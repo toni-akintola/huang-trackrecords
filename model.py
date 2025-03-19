@@ -36,6 +36,7 @@ def generateTimestepData(model: AgentModel):
             ** 2,
             4,
         )
+        # Take credence for each hypothesis, and weight each hypothesis to get the agent's overall belief.
 
     def update_evidence(node_data: Dict) -> Dict:
         """Update evidential component based on new evidence"""
@@ -138,13 +139,3 @@ def constructModel() -> AgentModel:
         }
     )
     return model
-
-
-# Run a simulation with TR scientists
-# tr_model = run_simulation(scientist_type="tr", steps=100)
-
-# Run a simulation with random scientists
-# random_model = run_simulation(scientist_type="random", steps=100)
-
-# Run a simulation with patient scientists
-# patient_model = run_simulation(scientist_type="patient", steps=100)
