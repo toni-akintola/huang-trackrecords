@@ -18,7 +18,7 @@ def generateInitialData(model: AgentModel) -> Dict:
         # Credence for each hyp - now exactly sums to 1
         "cred": initial_cred.tolist(),
         "noise": random.uniform(0.001, 0.2),
-        "c": (round(random.random(), 2) if model["scientist_type"] != "patient" else 1),
+        "c": (round(random.random(), 2) if model["model_variation"] != "patient-scientist" else 1),
         "social": None,
         "evidential": None,
         "brier_score": 1,
@@ -59,7 +59,7 @@ def generateTimestepData(model: AgentModel):
     def update_social(node: int, node_data: Dict) -> Dict:
         """Update social component based on neighbors"""
         graph = model.get_graph()
-        if model["scientist_type"] == "random":
+        if model["model_variation"] == "random-scientist":
             # Random scientist picks random neighbors
             neighbors = random.sample(
                 # Exclude self from neighbors
