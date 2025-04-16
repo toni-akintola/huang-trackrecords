@@ -132,8 +132,8 @@ def constructModel() -> AgentModel:
             "convergence_std_dev": 0.10,
             "truth": random.choice(np.round(np.arange(0, 1.001, 1 / 5), 2)),
             "feedback_rate": 1,
-            "scientist_type": "tr",  # Can be 'tr', 'random', or 'patient'
+            "model_variation": "tr",  # Can be 'tr', 'random', or 'patient'
         }
     )
+    model["variations"] = ["tr-scientist", "random-scientist", "patient-scientist"]
     return model
-
