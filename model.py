@@ -18,11 +18,16 @@ def generateInitialData(model: AgentModel) -> Dict:
         # Credence for each hyp - now exactly sums to 1
         "cred": initial_cred.tolist(),
         "noise": random.uniform(0.001, 0.2),
-        "c": (round(random.random(), 2) if model["model_variation"] != "patient-scientist" else 1),
+        "c": (
+            round(random.random(), 2)
+            if model["model_variation"] != "patient-scientist"
+            else 1
+        ),
         "social": None,
         "evidential": None,
         "brier_score": 1,
         "brier_history": [],
+        "r_value": 0.0,  # Correlation between centrality and accuracy (community-wide metric)
     }
 
 
@@ -56,7 +61,7 @@ def generateTimestepData(model: AgentModel):
         node_data["evidential"] = (noisy / sum(noisy)).tolist()
         return node_data
 
-    def update_social(node: int, node_data: Dict) -> Dict:
+    def update_social(node: int, node_data: Dict, trust_network: Dict) -> Dict:
         """Update social component based on neighbors"""
         graph = model.get_graph()
         if model["model_variation"] == "random-scientist":
@@ -79,6 +84,9 @@ def generateTimestepData(model: AgentModel):
                 ),
             )[:n]
 
+        # Track trust relations for network analysis
+        trust_network[node] = neighbors
+
         # Calculate average credence of neighbors
         if neighbors:
             neighbor_creds = [np.array(graph.nodes[n]["cred"]) for n in neighbors]
@@ -89,12 +97,15 @@ def generateTimestepData(model: AgentModel):
         return node_data
 
     graph = model.get_graph()
+    
+    # Track trust relations for computing centrality
+    trust_network = {}
 
     # First pass: update evidence and social components
     for node in graph.nodes():
         node_data = graph.nodes[node]
         node_data = update_evidence(node_data)
-        node_data = update_social(node, node_data)
+        node_data = update_social(node, node_data, trust_network)
 
         # Update credence based on evidence and social information
         cred = np.array(node_data["cred"])
@@ -118,6 +129,57 @@ def generateTimestepData(model: AgentModel):
 
         graph.nodes[node].update(node_data)
     model.set_graph(graph)
+    
+    # Compute and track metrics: R-value and average Brier score
+    # Build directed graph from trust relations for HITS algorithm
+    trust_graph = nx.DiGraph()
+    trust_graph.add_nodes_from(graph.nodes())
+    for node, informants in trust_network.items():
+        for informant in informants:
+            trust_graph.add_edge(node, informant)  # node trusts informant
+    
+    # Compute authority scores using HITS algorithm
+    if len(trust_graph.edges()) > 0:
+        try:
+            hubs, authorities = nx.hits(trust_graph, max_iter=100, normalized=True)
+            authority_scores = [authorities.get(node, 0.0) for node in graph.nodes()]
+        except:
+            # Fallback if HITS fails (e.g., disconnected graph)
+            authority_scores = [0.0] * len(graph.nodes())
+    else:
+        # No trust relations yet
+        authority_scores = [0.0] * len(graph.nodes())
+    
+    # Get Brier scores (error measure: lower is better)
+    # Note: In the code, brier_score is the sum of squared errors, not the full Brier accuracy formula
+    brier_errors = [graph.nodes[node]["brier_score"] for node in graph.nodes()]
+    
+    # Convert to Brier accuracy (higher is better) for correlation with authority
+    # The paper defines Brier accuracy as: 1 - (1/n) * sum((P(Hj) - I(Hj))^2)
+    # Since brier_score in code is the sum term, we normalize it
+    # For correlation purposes, we want to see if higher authority = higher accuracy
+    # So we'll use accuracy = 1 - normalized_error, or just correlate with -error
+    num_hypotheses = len(graph.nodes[list(graph.nodes())[0]]["hyp"])
+    brier_accuracies = [1 - (bs / num_hypotheses) for bs in brier_errors]
+    
+    # Compute correlation (R-value) between authority scores and Brier accuracy
+    # Higher R-value indicates better meta-expertise (recognition tracks accuracy)
+    # This is a community-wide metric, but stored on each node for tracking
+    if (len(authority_scores) > 1 and 
+        np.std(authority_scores) > 1e-10 and 
+        np.std(brier_accuracies) > 1e-10):
+        r_value = np.corrcoef(authority_scores, brier_accuracies)[0, 1]
+        if np.isnan(r_value):
+            r_value = 0.0
+    else:
+        r_value = 0.0
+    
+    # Store R-value and Brier score as node attributes (data items)
+    for node in graph.nodes():
+        graph.nodes[node]["r_value"] = float(r_value)
+        # brier_score is already stored on each node
+    
+    model.set_graph(graph)
 
 
 def constructModel() -> AgentModel:
@@ -136,4 +198,5 @@ def constructModel() -> AgentModel:
         }
     )
     model["variations"] = ["tr-scientist", "random-scientist", "patient-scientist"]
+    
     return model
