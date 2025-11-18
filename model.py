@@ -190,8 +190,6 @@ def constructModel() -> AgentModel:
         {
             "num_nodes": 30,
             "graph_type": "complete",
-            "convergence_data_key": "brier_score",
-            "convergence_std_dev": 0.10,
             "truth": random.choice(np.round(np.arange(0, 1.001, 1 / 5), 2)),
             "feedback_rate": 1,
             "model_variation": "tr",  # Can be 'tr', 'random', or 'patient'
