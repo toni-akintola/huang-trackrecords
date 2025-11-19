@@ -2,7 +2,7 @@ import random
 import networkx as nx
 import numpy as np
 import scipy.stats
-from typing import Dict, List
+from typing import Dict
 from emergent.main import AgentModel
 
 
@@ -97,7 +97,7 @@ def generateTimestepData(model: AgentModel):
         return node_data
 
     graph = model.get_graph()
-    
+
     # Track trust relations for computing centrality
     trust_network = {}
 
@@ -129,7 +129,7 @@ def generateTimestepData(model: AgentModel):
 
         graph.nodes[node].update(node_data)
     model.set_graph(graph)
-    
+
     # Compute and track metrics: R-value and average Brier score
     # Build directed graph from trust relations for HITS algorithm
     trust_graph = nx.DiGraph()
@@ -137,7 +137,7 @@ def generateTimestepData(model: AgentModel):
     for node, informants in trust_network.items():
         for informant in informants:
             trust_graph.add_edge(node, informant)  # node trusts informant
-    
+
     # Compute authority scores using HITS algorithm
     if len(trust_graph.edges()) > 0:
         try:
@@ -149,11 +149,11 @@ def generateTimestepData(model: AgentModel):
     else:
         # No trust relations yet
         authority_scores = [0.0] * len(graph.nodes())
-    
+
     # Get Brier scores (error measure: lower is better)
     # Note: In the code, brier_score is the sum of squared errors, not the full Brier accuracy formula
     brier_errors = [graph.nodes[node]["brier_score"] for node in graph.nodes()]
-    
+
     # Convert to Brier accuracy (higher is better) for correlation with authority
     # The paper defines Brier accuracy as: 1 - (1/n) * sum((P(Hj) - I(Hj))^2)
     # Since brier_score in code is the sum term, we normalize it
@@ -161,24 +161,26 @@ def generateTimestepData(model: AgentModel):
     # So we'll use accuracy = 1 - normalized_error, or just correlate with -error
     num_hypotheses = len(graph.nodes[list(graph.nodes())[0]]["hyp"])
     brier_accuracies = [1 - (bs / num_hypotheses) for bs in brier_errors]
-    
+
     # Compute correlation (R-value) between authority scores and Brier accuracy
     # Higher R-value indicates better meta-expertise (recognition tracks accuracy)
     # This is a community-wide metric, but stored on each node for tracking
-    if (len(authority_scores) > 1 and 
-        np.std(authority_scores) > 1e-10 and 
-        np.std(brier_accuracies) > 1e-10):
+    if (
+        len(authority_scores) > 1
+        and np.std(authority_scores) > 1e-10
+        and np.std(brier_accuracies) > 1e-10
+    ):
         r_value = np.corrcoef(authority_scores, brier_accuracies)[0, 1]
         if np.isnan(r_value):
             r_value = 0.0
     else:
         r_value = 0.0
-    
+
     # Store R-value and Brier score as node attributes (data items)
     for node in graph.nodes():
         graph.nodes[node]["r_value"] = float(r_value)
         # brier_score is already stored on each node
-    
+
     model.set_graph(graph)
 
 
@@ -196,5 +198,5 @@ def constructModel() -> AgentModel:
         }
     )
     model["variations"] = ["tr-scientist", "random-scientist", "patient-scientist"]
-    
+
     return model
