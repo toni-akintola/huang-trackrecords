@@ -75,3 +75,6 @@ Each scientist maintains:
 - `M`: Open-mindedness parameter (0.05 to 0.5) - percentage of community willing to consult
 - `C`: Weight on evidence vs. testimony (0 to 1) - 1 = isolation, 0 = pure testimony
 - `Noise`: Noise parameter (0.001 to 0.2) - deviation from ideal Bayesian updating
+
+
+**Click the 'Visualizations' tab to get started.**
